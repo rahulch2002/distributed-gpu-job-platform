@@ -172,3 +172,46 @@ Job execution progress, ETA, queue position, and runtime metrics are streamed to
                                MinIO
                          Result & Artifact Store
 ```
+
+
+
+## Folder Structure
+
+```text
+Distributed-GPU-Job-Scheduler/
+│
+├── api/
+│   ├── index.js
+│   └── Dockerfile
+│
+├── scheduler/
+│   ├── scheduler.js
+│   └── Dockerfile
+│
+├── worker/
+│   ├── worker.js
+│   └── Dockerfile
+│
+├── autoscaler/
+│   ├── autoscaler.js
+│   └── Dockerfile
+│
+├── utils/
+│   ├── hashRing.js
+│   ├── providerCache.js
+│   ├── providerMatcher.js
+│   ├── metrics.js
+│   ├── queue.js
+│   ├── priority.js
+│   └── shard.js
+│
+├── postgres-init/
+│   └── init.sql
+│
+├── docker-compose.yml
+├── package.json
+└── README.md
+```
+
+
+<img width="1450" height="3275" alt="dLRDRXit4BxlKmnoge4O2TBsq20suifAeZHsb5tPlHW8AEv8OiqbDoHNgL7qtJlyYIWgQo7enUPgPZxEppSpV6qTCsxePEM4amXJrPuwVKh_uEty1jxh9JHyW-qWXLf3Wry6L1ohYWrEgw5Reg4pTzh0H0fKhgfwmXDSz4mvU78ndv6HsGgEJu1PeE-gPOujcKLuKcChRFWzdFOaSstT" src="https://github.com/user-attachments/assets/2f1fd96c-e0fc-4ad1-8cf0-9095d0722554" />
