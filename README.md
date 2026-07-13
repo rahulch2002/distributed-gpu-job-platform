@@ -237,3 +237,214 @@ The workflow includes:
 This sequence represents the complete execution path of a job from submission until completion, including all distributed coordination mechanisms.
 
 <img width="1450" height="3275" alt="dLRDRXit4BxlKmnoge4O2TBsq20suifAeZHsb5tPlHW8AEv8OiqbDoHNgL7qtJlyYIWgQo7enUPgPZxEppSpV6qTCsxePEM4amXJrPuwVKh_uEty1jxh9JHyW-qWXLf3Wry6L1ohYWrEgw5Reg4pTzh0H0fKhgfwmXDSz4mvU78ndv6HsGgEJu1PeE-gPOujcKLuKcChRFWzdFOaSstT" src="https://github.com/user-attachments/assets/2f1fd96c-e0fc-4ad1-8cf0-9095d0722554" />
+
+
+## Class Diagram
+
+The following class diagram illustrates the primary logical components of the distributed GPU scheduling platform and their interactions. Each component encapsulates a distinct responsibility within the system, ranging from request handling and scheduling to worker execution, caching, storage, and infrastructure services.
+
+Unlike a traditional object-oriented class diagram, this diagram models the architectural components of the platform, their public responsibilities, and the relationships between them.
+
+<img width="1243" height="955" alt="RLFRSXCn37ttL-nZcKnd-0AcwGK8f4EQjF2is4hYYNUzI7BAmF3lx7ft7SVqpPBEERf8lc41ab0x9LOSLlUMXUms29hgq-gbskW3ck1iiwzM3cJdgQwkgpi7p1qMzWIrKdoqJGlTiz9zO2wZn4BxPcD_O_LUgHYfvgl51kbaDLP_r8p3jhRonM-ltgdP7llNHa02zpOB8TGNBkthDWW-" src="https://github.com/user-attachments/assets/037532db-e10a-4b03-b728-948f7f2448f0" />
+
+## Class Responsibilities
+
+### APIService
+
+The **APIService** serves as the primary entry point into the platform and is responsible for handling all client interactions.
+
+**Responsibilities**
+
+- Accepts GPU job submission requests through REST endpoints.
+- Applies Token Bucket rate limiting to control request frequency.
+- Computes the destination shard using consistent hashing.
+- Uploads input artifacts to MinIO object storage.
+- Persists job metadata in PostgreSQL.
+- Enqueues users into shard-local fair scheduling queues maintained in Redis.
+- Exposes job status, provider status, fairness, and monitoring endpoints.
+- Streams live execution updates using Server-Sent Events (SSE).
+
+---
+
+### Scheduler
+
+The **Scheduler** acts as the central orchestration component responsible for assigning jobs to GPU workers.
+
+**Responsibilities**
+
+- Continuously polls distributed scheduling queues.
+- Implements priority-aware scheduling across service tiers.
+- Maintains fairness by scheduling users in a round-robin manner.
+- Selects eligible providers based on GPU capabilities and current utilization.
+- Assigns execution leases to workers.
+- Dispatches jobs asynchronously using Kafka.
+- Detects expired leases and automatically recovers abandoned jobs.
+- Publishes shard utilization and scheduling metrics.
+
+---
+
+### Worker
+
+The **Worker** represents an individual GPU execution node responsible for processing assigned workloads.
+
+**Responsibilities**
+
+- Registers itself as an available GPU provider.
+- Advertises GPU capabilities and execution capacity.
+- Periodically sends heartbeat updates.
+- Consumes assigned jobs from Kafka.
+- Acquires and periodically renews execution leases.
+- Executes GPU workloads.
+- Updates runtime progress in Redis.
+- Uploads generated results to MinIO.
+- Updates job status in PostgreSQL.
+- Requeues users with additional pending jobs.
+
+---
+
+### ProviderMatcher
+
+The **ProviderMatcher** encapsulates the provider selection algorithm used by the scheduler.
+
+**Responsibilities**
+
+- Retrieves candidate providers for the selected shard.
+- Filters providers based on GPU class compatibility.
+- Validates VRAM requirements.
+- Excludes providers operating at full capacity.
+- Selects the least-loaded eligible provider.
+
+---
+
+### ProviderCache
+
+The **ProviderCache** provides fast access to provider metadata stored in Redis.
+
+**Responsibilities**
+
+- Retrieves provider metadata from Redis.
+- Caches GPU capabilities.
+- Stores current provider utilization.
+- Minimizes database access during scheduling decisions.
+
+---
+
+### HashRing
+
+The **HashRing** implements consistent hashing for deterministic shard assignment.
+
+**Responsibilities**
+
+- Maps users to scheduling shards.
+- Maintains the virtual hash ring.
+- Supports virtual nodes for improved load distribution.
+- Minimizes remapping when shards are added or removed.
+
+---
+
+### FairQueue
+
+The **FairQueue** manages user-level scheduling fairness.
+
+**Responsibilities**
+
+- Maintains independent queues for each priority and shard.
+- Prevents duplicate user entries.
+- Supports round-robin scheduling across users.
+- Requeues users with remaining pending jobs.
+
+---
+
+### TokenBucketLimiter
+
+The **TokenBucketLimiter** enforces per-user request rate limiting.
+
+**Responsibilities**
+
+- Maintains token buckets for each user.
+- Refills tokens at a configurable rate.
+- Allows burst traffic within bucket capacity.
+- Rejects requests when available tokens are exhausted.
+
+---
+
+### RedisCache
+
+The **RedisCache** functions as the distributed in-memory cache for frequently accessed scheduling metadata.
+
+**Responsibilities**
+
+- Stores provider metadata.
+- Maintains runtime execution progress.
+- Stores distributed scheduling queues.
+- Tracks active users.
+- Maintains shard metrics.
+- Reduces scheduling latency by avoiding repeated database queries.
+
+---
+
+### PostgreSQL
+
+**PostgreSQL** acts as the persistent metadata repository for the platform.
+
+**Responsibilities**
+
+- Persists job metadata.
+- Stores provider information.
+- Maintains lease ownership.
+- Records execution history.
+- Stores rate limiting state.
+- Maintains scheduling metadata required for recovery.
+
+---
+
+### KafkaBroker
+
+The **KafkaBroker** provides asynchronous communication between the scheduler and GPU workers.
+
+**Responsibilities**
+
+- Delivers jobs to assigned workers.
+- Decouples scheduling from execution.
+- Enables scalable asynchronous processing.
+- Supports independent scaling of scheduler and worker services.
+
+---
+
+### MinIO
+
+**MinIO** provides S3-compatible object storage for job artifacts and execution results.
+
+**Responsibilities**
+
+- Stores uploaded input artifacts.
+- Stores generated execution outputs.
+- Simulates cloud object storage for distributed workloads.
+
+---
+
+### Autoscaler
+
+The **Autoscaler** continuously monitors cluster utilization to support future horizontal scaling.
+
+**Responsibilities**
+
+- Collects shard-level scheduling metrics.
+- Monitors queue depth.
+- Tracks provider utilization.
+- Detects overloaded shards.
+- Provides scaling decisions for worker allocation.
+```
+
+### Architectural Design Principles
+
+The class interactions collectively implement several software engineering and distributed systems design principles:
+
+- **Single Responsibility Principle (SRP):** Each component performs a well-defined task.
+- **Loose Coupling:** Services communicate through Redis, Kafka, and PostgreSQL rather than direct dependencies.
+- **Asynchronous Messaging:** Kafka decouples scheduling from execution.
+- **Distributed Caching:** Redis minimizes repeated database access.
+- **Strategy Pattern:** ProviderMatcher encapsulates provider selection logic.
+- **Consistent Hashing:** HashRing distributes users across shards while minimizing redistribution.
+- **Fault Tolerance:** Lease-based ownership enables automatic recovery of interrupted jobs.
+- **Horizontal Scalability:** Workers and shards can be added independently without modifying application logic.
