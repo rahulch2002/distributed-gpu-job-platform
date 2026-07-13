@@ -214,4 +214,26 @@ Distributed-GPU-Job-Scheduler/
 ```
 
 
+# End-to-End Request Lifecycle
+
+The following sequence diagram illustrates the complete lifecycle of a job submitted to the distributed GPU scheduling platform. It captures interactions between the client, API service, distributed scheduler, Redis cache, PostgreSQL, Kafka, GPU workers, and object storage.
+
+The workflow includes:
+
+- Job submission
+- Token Bucket rate limiting
+- Consistent hashing for shard selection
+- Job persistence
+- Fair scheduling
+- Priority scheduling
+- GPU capability matching
+- Provider selection
+- Lease acquisition and renewal
+- Runtime progress updates
+- Result storage
+- Live status streaming
+- Automatic recovery of failed or abandoned jobs
+
+This sequence represents the complete execution path of a job from submission until completion, including all distributed coordination mechanisms.
+
 <img width="1450" height="3275" alt="dLRDRXit4BxlKmnoge4O2TBsq20suifAeZHsb5tPlHW8AEv8OiqbDoHNgL7qtJlyYIWgQo7enUPgPZxEppSpV6qTCsxePEM4amXJrPuwVKh_uEty1jxh9JHyW-qWXLf3Wry6L1ohYWrEgw5Reg4pTzh0H0fKhgfwmXDSz4mvU78ndv6HsGgEJu1PeE-gPOujcKLuKcChRFWzdFOaSstT" src="https://github.com/user-attachments/assets/2f1fd96c-e0fc-4ad1-8cf0-9095d0722554" />
