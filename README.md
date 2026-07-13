@@ -434,7 +434,7 @@ The **Autoscaler** continuously monitors cluster utilization to support future h
 - Tracks provider utilization.
 - Detects overloaded shards.
 - Provides scaling decisions for worker allocation.
-```
+
 
 ### Architectural Design Principles
 
