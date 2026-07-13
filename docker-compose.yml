@@ -1,0 +1,201 @@
+services:
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+      
+  postgres:
+    image: postgres:15
+    command: postgres -c listen_addresses='*'
+    environment:
+      POSTGRES_PASSWORD: password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redpanda:
+    image: redpandadata/redpanda
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp 1
+      - --memory 512M
+      - --reserve-memory 0M
+      - --node-id 0
+      - --kafka-addr PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr PLAINTEXT://redpanda:9092
+      - --set redpanda.auto_create_topics_enabled=false
+    ports:
+      - "9092:9092"
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+    volumes:
+      - minio-data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  minio-init:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 admin password; do
+        echo 'Waiting for MinIO...';
+        sleep 2;
+      done;
+      mc mb local/jobs || true;
+      exit 0;
+      "
+
+  kafka-init:
+    image: redpandadata/redpanda
+    depends_on:
+      - redpanda
+    entrypoint: >
+      /bin/sh -c "
+      echo 'Waiting for Kafka...';
+      until rpk cluster info --brokers redpanda:9092; do
+        sleep 2;
+      done;
+      echo 'Creating topic jobs with 3 partitions...';
+      rpk topic create jobs --partitions 3 --brokers redpanda:9092;
+      echo 'Kafka init complete';
+      "
+      
+  scheduler:
+    build:
+      context: .
+      dockerfile: scheduler/Dockerfile
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_started
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_started
+    ports:
+      - "3000:3000"
+
+  worker-shard-0-a:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    environment:
+      SHARD_ID: 0
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_started
+
+  worker-shard-0-b:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    environment:
+      SHARD_ID: 0
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_started
+
+  worker-shard-1-a:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    environment:
+      SHARD_ID: 1
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_started
+
+  worker-shard-1-b:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    environment:
+      SHARD_ID: 1
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_started
+
+  worker-shard-2-a:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    environment:
+      SHARD_ID: 2
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_started
+
+  worker-shard-2-b:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    environment:
+      SHARD_ID: 2
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_started
+  
+  autoscaler:
+    build:
+      context: .
+      dockerfile: autoscaler/Dockerfile
+    depends_on:
+      redis:
+        condition: service_started
+
+volumes:
+  pgdata:
+  minio-data:

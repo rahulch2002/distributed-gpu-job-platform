@@ -1,0 +1,12 @@
+{
+  "name": "scheduler",
+  "version": "1.0.0",
+  "main": "scheduler.js",
+  "dependencies": {
+    "consistent-hash": "^1.2.2",
+    "express": "^5.2.1",
+    "ioredis": "^5.10.0",
+    "kafkajs": "^2.2.4",
+    "pg": "^8.11.3"
+  }
+}
